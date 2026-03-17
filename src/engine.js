@@ -236,6 +236,7 @@ export class PlanetState {
     this.life = 0;
     this.variables = Object.fromEntries(VARIABLES.map((variable) => [variable, 0]));
     this.entropy = 0;
+    this.biosphereMomentum = 0;
     this.currentAge = 'The Silent Cradle';
     this.worldOrigin = 'Stone waits beneath a patient sun.';
     this.dominantSpecies = null;
@@ -292,6 +293,22 @@ export class PlanetState {
     }
   }
 
+  applyMomentum(effects, factor = 1) {
+    const supportive = Math.max(0, effects.Fertility ?? 0) * 1.2
+      + Math.max(0, effects.Diversity ?? 0) * 1.1
+      + Math.max(0, effects.Moisture ?? 0) * 0.55
+      + Math.max(0, -(effects.Tempest ?? 0)) * 0.8
+      + Math.max(0, -(effects.Upheaval ?? 0)) * 0.45
+      + Math.max(0, -(effects.Dominance ?? 0)) * 0.4;
+    const hostile = Math.max(0, effects.Tempest ?? 0) * 1.1
+      + Math.max(0, effects.Upheaval ?? 0) * 1.05
+      + Math.max(0, -(effects.Fertility ?? 0)) * 1.2
+      + Math.max(0, -(effects.Diversity ?? 0)) * 1.25
+      + Math.max(0, effects.Dominance ?? 0) * 0.8
+      + Math.max(0, -(effects.Moisture ?? 0)) * 0.5;
+    this.biosphereMomentum = clamp(this.biosphereMomentum + (supportive - hostile) * factor, -18, 18);
+  }
+
   derivedBiases() {
     const values = this.variables;
     return {
@@ -329,14 +346,14 @@ export class PlanetState {
     const moistureBalance = Math.max(0, 12 - Math.abs(values.Moisture));
     if (this.stage === 'Worldforming') {
       const oceansBalance = Math.max(0, 12 - Math.abs(values.Oceans));
-      return warmthBalance + moistureBalance + oceansBalance + values.Fertility * 0.55 - Math.abs(values.Tempest) * 0.6 - Math.abs(values.Upheaval) * 0.45;
+      return warmthBalance + moistureBalance + oceansBalance + values.Fertility * 0.55 - Math.abs(values.Tempest) * 0.6 - Math.abs(values.Upheaval) * 0.45 + this.biosphereMomentum * 0.4;
     }
-    return values.Diversity * 0.42 + values.Fertility * 0.48 + warmthBalance * 0.85 + moistureBalance * 0.85 + values.Oceans * 0.12 - Math.abs(values.Tempest) * 0.52 - Math.abs(values.Upheaval) * 0.46 - Math.max(0, values.Dominance - values.Diversity) * 0.85;
+    return values.Diversity * 0.42 + values.Fertility * 0.48 + warmthBalance * 0.85 + moistureBalance * 0.85 + values.Oceans * 0.12 - Math.abs(values.Tempest) * 0.52 - Math.abs(values.Upheaval) * 0.46 - Math.max(0, values.Dominance - values.Diversity) * 0.85 + this.biosphereMomentum * 1.15;
   }
 
   civilizationPressure() {
     if (!this.civilization) return 0;
-    return 0.65 + this.collapseMarks * 0.4 + (this.stage === 'Ruin or Renewal' ? 0.5 : 0.15);
+    return 0.45 + this.collapseMarks * 0.32 + (this.stage === 'Ruin or Renewal' ? 0.35 : 0.08);
   }
 
   updateMeter(delta) {
@@ -632,13 +649,14 @@ export class CivilizationSystem {
 
     const event = this.selectEvent(state);
     state.applyEffects(event.effects);
+    state.applyMomentum(event.effects, ['renewal', 'trade', 'stewardship'].includes(event.kind) ? 0.62 : 0.46);
     state.civilization.stability = clamp(state.civilization.stability + event.stability, 0, 100);
     state.civilization.summary = `${state.civilization.name}. ${state.civilization.ethos} ${state.civilization.focus}`;
     state.civilization.lastEvent = event.text;
     lines.push(event.text);
 
     if (event.kind === 'collapse') state.collapseMarks += 1;
-    if (['war', 'holy-war', 'collapse', 'renewal'].includes(event.kind)) {
+    if (['war', 'holy-war', 'collapse', 'renewal', 'stewardship'].includes(event.kind)) {
       history.add(state.year, state.turn, event.kind, event.text);
     }
     return lines;
@@ -690,6 +708,17 @@ export class CivilizationSystem {
 
   selectEvent(state) {
     const biases = state.derivedBiases();
+    if (state.crisisActive() && biases.Cooperation > biases.Aggression) {
+      return {
+        kind: 'renewal',
+        stability: 8,
+        text: `${state.civilization.name} turns to repair, ration, and careful stewardship.`,
+        effects: {
+          Warmth: 0, Moisture: 1, Tempest: -1, Upheaval: -1, Oceans: 0,
+          Fertility: 2, Diversity: 2, Ingenuity: 1, Dominance: -2,
+        },
+      };
+    }
     if (!state.civilization.holyWarSeen
       && state.civilization.collective
       && state.civilization.bugLike
@@ -700,7 +729,7 @@ export class CivilizationSystem {
       state.civilization.holyWarSeen = true;
       return {
         kind: 'holy-war',
-        stability: -8,
+        stability: -6,
         text: `${state.civilization.name} fights a holy war to decide whether you are god.`,
         effects: {
           Warmth: 0, Moisture: -1, Tempest: 1, Upheaval: 2, Oceans: 0,
@@ -708,25 +737,39 @@ export class CivilizationSystem {
         },
       };
     }
-    if (state.stage === 'Ruin or Renewal' && (state.entropy > 18 || state.civilization.stability < 32)) {
-      return {
-        kind: 'collapse',
-        stability: -10,
-        text: `${state.civilization.name} enters another collapse cycle.`,
-        effects: {
-          Warmth: 0, Moisture: -1, Tempest: 2, Upheaval: 2, Oceans: -1,
-          Fertility: -3, Diversity: -3, Ingenuity: -2, Dominance: -2,
-        },
-      };
-    }
-    if (state.crisisActive() && biases.Cooperation > biases.Aggression) {
+    if (state.stage === 'Ruin or Renewal'
+      && state.biosphereMomentum > 6
+      && biases.Cooperation >= biases.Aggression
+      && this.rng() < 0.52) {
       return {
         kind: 'renewal',
         stability: 6,
-        text: `${state.civilization.name} turns to repair, ration, and careful stewardship.`,
+        text: `${state.civilization.name} gathers its ruins into a stubborn renewal.`,
         effects: {
           Warmth: 0, Moisture: 1, Tempest: -1, Upheaval: -1, Oceans: 0,
-          Fertility: 2, Diversity: 2, Ingenuity: 1, Dominance: -2,
+          Fertility: 2, Diversity: 1, Ingenuity: 1, Dominance: -1,
+        },
+      };
+    }
+    if (state.stage === 'Ruin or Renewal' && (state.entropy > 22 || state.civilization.stability < 24)) {
+      return {
+        kind: 'collapse',
+        stability: -8,
+        text: `${state.civilization.name} enters another collapse cycle.`,
+        effects: {
+          Warmth: 0, Moisture: -1, Tempest: 2, Upheaval: 2, Oceans: -1,
+          Fertility: -2, Diversity: -2, Ingenuity: -1, Dominance: -2,
+        },
+      };
+    }
+    if (state.civilization.stability > 62 && biases.Cooperation >= biases.Aggression && this.rng() < 0.38) {
+      return {
+        kind: 'stewardship',
+        stability: 4,
+        text: `${state.civilization.name} keeps a season of careful stewardship.`,
+        effects: {
+          Warmth: 0, Moisture: 1, Tempest: -1, Upheaval: -1, Oceans: 0,
+          Fertility: 1, Diversity: 1, Ingenuity: 1, Dominance: -1,
         },
       };
     }
@@ -748,14 +791,14 @@ export class CivilizationSystem {
         text: `${state.civilization.name} spreads through craft, study, and extraction.`,
         effects: {
           Warmth: 2, Moisture: 0, Tempest: 0, Upheaval: 1, Oceans: 0,
-          Fertility: -2, Diversity: 0, Ingenuity: 3, Dominance: 1,
+          Fertility: -1, Diversity: 0, Ingenuity: 3, Dominance: 1,
         },
       };
     }
     if (biases.Aggression > biases.Cooperation + 3) {
       return {
         kind: 'war',
-        stability: -4,
+        stability: -3,
         text: `${state.civilization.name} fights a war of creed and prestige.`,
         effects: {
           Warmth: 0, Moisture: 0, Tempest: 1, Upheaval: 1, Oceans: 0,
@@ -782,19 +825,22 @@ export class EntropySystem {
 
   advance(state) {
     let growth = STAGE_CONFIGS[state.stage].entropy + state.collapseMarks * 0.12;
-    if (state.civilization) growth += 0.18 + Math.max(0, state.variables.Ingenuity) / 140;
-    if (state.crisisActive()) growth += 0.14;
+    if (state.civilization) growth += (state.stage === 'Ruin or Renewal' ? 0.08 : 0.12) + Math.max(0, state.variables.Ingenuity) / 180;
+    if (state.crisisActive()) growth += 0.1;
     state.entropy += growth;
   }
 
   decisionFactor(state, category) {
-    if (category === 'stabilizing') return Math.max(0.42, 1 - state.entropy * 0.018);
-    if (category === 'destabilizing') return 1 + state.entropy * 0.02;
-    return 1 + state.entropy * 0.01;
+    const shelter = Math.max(0, state.biosphereMomentum) * 0.012;
+    const fragility = Math.max(0, -state.biosphereMomentum) * 0.012;
+    if (category === 'stabilizing') return Math.max(0.52, 1 - state.entropy * 0.015 + shelter - fragility * 0.6);
+    if (category === 'destabilizing') return 1 + state.entropy * 0.018 + fragility * 0.7 - shelter * 0.25;
+    return 1 + state.entropy * 0.009 + fragility * 0.35 - shelter * 0.15;
   }
 
   backgroundInstability(state) {
-    const pressure = Math.floor(state.entropy / 6.5);
+    const shelter = Math.max(0, Math.floor(state.biosphereMomentum / 5));
+    const pressure = Math.floor(Math.max(0, state.entropy - shelter) / 6.8);
     if (pressure <= 0) return [];
     const effects = {
       Warmth: randomInt(this.rng, 0, 1),
@@ -808,20 +854,35 @@ export class EntropySystem {
       Dominance: randomInt(this.rng, 0, Math.max(1, Math.floor(pressure / 2))),
     };
     state.applyEffects(effects);
+    state.applyMomentum(effects, 0.45);
     return state.entropy >= 12 ? ['Old instabilities gather strength.'] : [];
   }
 
   applyMeterDrift(state) {
     const support = state.supportScore();
+    const shelter = Math.max(0, state.biosphereMomentum);
+    const fragility = Math.max(0, -state.biosphereMomentum);
     if (state.stage === 'Worldforming') {
-      const delta = Math.round(support / 9 - state.entropy * 0.45);
+      const delta = Math.round(support / 9 - state.entropy * 0.4 + shelter * 0.08 - fragility * 0.05);
       state.updateMeter(delta);
       return delta;
     }
     const earlyMercy = state.stage === 'First Life' ? 2 : state.stage === 'Complex Life' ? 1 : 0;
-    let delta = Math.round(support / 10 + earlyMercy - state.entropy * (0.18 + state.stageIndex() * 0.05) - state.civilizationPressure());
-    if (state.stage === 'Civilization') delta -= 1;
-    if (state.stage === 'Ruin or Renewal') delta -= 2;
+    const entropyWeight = 0.12 + state.stageIndex() * 0.03;
+    const entropyLoad = Math.pow(Math.max(0, state.entropy), 0.9) * entropyWeight;
+    const civilizationDrag = Math.max(0, state.civilizationPressure() - shelter * 0.06);
+    let delta = Math.round(
+      support / 10
+      + earlyMercy
+      + shelter * 0.09
+      - fragility * 0.08
+      - entropyLoad
+      - civilizationDrag
+    );
+    if (state.stage === 'Great Creatures' && shelter >= 6) delta += 1;
+    if (state.stage === 'Thinking Beasts' && shelter >= 8) delta += 1;
+    if (state.stage === 'Civilization') delta -= shelter >= 8 ? 0 : 1;
+    if (state.stage === 'Ruin or Renewal') delta -= shelter >= 10 ? 1 : 2;
     state.updateMeter(delta);
     return delta;
   }
@@ -848,6 +909,11 @@ export class AgeSystem {
     const secondWord = constraints[0][1] < 0 ? ageWords[constraints[0][0]][1] : ageWords[secondKey][secondValue >= 0 ? 0 : 1];
     state.currentAge = `The ${prefix} Age of ${firstWord} and ${secondWord}`;
     state.ageCount += 1;
+    const ageMemory = {};
+    for (const [variable, value] of drivers) {
+      ageMemory[variable] = Math.sign(value) * Math.max(1, Math.round(Math.abs(value) / 10));
+    }
+    state.applyMomentum(ageMemory, 0.65);
 
     for (const [variable] of drivers) {
       if (variable === 'Ingenuity') state.mindEchoes += 1;
@@ -903,7 +969,8 @@ export class StageManager {
       const overdueAscent = state.stageTurn >= state.stageGoal + 5 && state.ageCount >= 1 && (state.variables.Diversity > 0 || biases.Resilience > 4);
       if (readyForGiants || overdueAscent) {
         state.setStage('Great Creatures');
-        state.life = Math.max(state.life, 42);
+        state.life = Math.max(state.life, 46);
+        state.biosphereMomentum = Math.max(state.biosphereMomentum, 3);
         state.dominantSpecies = this.speciesSystem.generate(state, state.dominantSpecies);
         history.add(state.year, state.turn, 'stage', 'Great creatures rise from the swarm of forms.');
         history.add(state.year, state.turn, 'species', `${state.dominantSpecies.name} now commands the age.`);
@@ -915,18 +982,20 @@ export class StageManager {
       const overdueAwakening = state.stageTurn >= state.stageGoal + 4 && state.ageCount >= 2 && biases.Curiosity > 3;
       if (readyForThought || overdueAwakening) {
         state.setStage('Thinking Beasts');
-        state.life = Math.max(state.life, 36);
+        state.life = Math.max(state.life, 40);
+        state.biosphereMomentum = Math.max(state.biosphereMomentum, 4);
         state.dominantSpecies = this.speciesSystem.generate(state, state.dominantSpecies);
         history.add(state.year, state.turn, 'stage', 'Thinking beasts awaken.');
         lines.push('A dominant beast begins to study cause and consequence.');
       }
     } else if (state.stage === 'Thinking Beasts' && state.civilization && state.stageTurn >= 2) {
       state.setStage('Civilization');
-      state.life = Math.max(state.life, 32);
+      state.life = Math.max(state.life, 36);
+      state.biosphereMomentum = Math.max(state.biosphereMomentum, 5);
       history.add(state.year, state.turn, 'stage', 'Cities and laws begin to spread.');
       lines.push('Cities and laws begin to spread.');
     } else if (state.stage === 'Civilization') {
-      if (state.entropy >= 18 || state.collapseMarks >= 1 || state.life < 44) {
+      if (state.entropy >= 20 || state.collapseMarks >= 2 || state.life < 32 || state.civilization?.stability < 36) {
         state.setStage('Ruin or Renewal');
         history.add(state.year, state.turn, 'stage', 'The age turns toward ruin or renewal.');
         lines.push('The age turns toward ruin or renewal.');
@@ -963,6 +1032,7 @@ export class GameLoop {
     const delayed = this.delayedQueue.resolve(this.state.turn);
     for (const item of delayed) {
       this.state.applyEffects(item.effects);
+      this.state.applyMomentum(item.effects, 0.65);
       lines.push(item.text);
     }
 
@@ -1000,7 +1070,9 @@ export class GameLoop {
   applyChoice(option) {
     const factor = this.entropySystem.decisionFactor(this.state, option.category);
     this.state.applyEffects(option.immediate, factor);
+    this.state.applyMomentum(option.immediate, option.category === 'stabilizing' ? 0.78 : option.category === 'ambiguous' ? 0.64 : 0.58);
     this.delayedQueue.addMany(option.delayed);
+    this.delayedQueue.addMany(this.createEcosystemEchoes(option));
     return [
       `${option.title} is chosen.`,
       option.category === 'stabilizing'
@@ -1009,6 +1081,44 @@ export class GameLoop {
           ? 'Power is taken through upheaval.'
           : 'A gift and a wound arrive together.',
     ];
+  }
+
+  createEcosystemEchoes(option) {
+    const effects = option.immediate;
+    const echoes = [];
+    const addEcho = (range, echoEffects, text) => {
+      echoes.push({
+        turn: this.state.turn + randomInt(this.rng, range[0], range[1]),
+        effects: echoEffects,
+        text,
+      });
+    };
+
+    if ((effects.Upheaval ?? 0) >= 2 && this.rng() < 0.82) {
+      addEcho([2, 5], { Fertility: 2, Diversity: 1, Upheaval: -1 }, 'Broken stone later feeds new ground.');
+    }
+    if ((effects.Tempest ?? 0) >= 2 && (effects.Moisture ?? 0) >= 2 && this.rng() < 0.76) {
+      addEcho([2, 4], { Fertility: -2, Diversity: -2, Dominance: 1 }, 'Flooded plenty turns foul and thins the choir of life.');
+    }
+    if ((effects.Fertility ?? 0) >= 2 && (effects.Diversity ?? 0) >= 1 && (effects.Tempest ?? 0) <= 1 && this.rng() < 0.78) {
+      addEcho([2, 5], { Fertility: 1, Diversity: 2, Ingenuity: 1, Dominance: 1 }, 'Abundance invites experiment and contest together.');
+    }
+    if ((effects.Dominance ?? 0) >= 2 && (effects.Diversity ?? 0) <= 0 && this.rng() < 0.84) {
+      addEcho([2, 5], { Diversity: -2, Fertility: -1, Dominance: 1 }, 'One appetite keeps spreading after the first victory.');
+    }
+    if ((effects.Warmth ?? 0) >= 2 && (effects.Moisture ?? 0) <= 0 && this.rng() < 0.74) {
+      addEcho([3, 5], { Moisture: -2, Fertility: -2, Tempest: 1 }, 'Heat keeps taking long after the bright season.');
+    }
+    if ((effects.Oceans ?? 0) >= 2 && (effects.Ingenuity ?? 0) >= 1 && this.rng() < 0.66) {
+      addEcho([3, 5], { Oceans: 1, Diversity: 1, Ingenuity: 1, Moisture: 1 }, 'New coasts teach new routes and new hungers.');
+    }
+    if (option.category === 'stabilizing' && this.state.biosphereMomentum >= 5 && this.rng() < 0.6) {
+      addEcho([2, 4], { Tempest: -1, Fertility: 1, Diversity: 1 }, 'Old shelter makes fresh shelter.');
+    }
+    if (option.category === 'destabilizing' && this.state.biosphereMomentum <= -4 && this.rng() < 0.6) {
+      addEcho([2, 4], { Tempest: 1, Upheaval: 1, Diversity: -1 }, 'The old wound remembers how to open.');
+    }
+    return echoes.slice(0, 3);
   }
 
   describeDrift(drift) {

@@ -21,13 +21,13 @@ export const STAGE_ORDER = [
 ];
 
 export const STAGE_CONFIGS = {
-  Worldforming: { goal: [10, 18], years: [35_000_000, 120_000_000], entropy: 0.18 },
-  'First Life': { goal: [8, 13], years: [8_000_000, 30_000_000], entropy: 0.25 },
-  'Complex Life': { goal: [10, 16], years: [2_000_000, 8_000_000], entropy: 0.38 },
-  'Great Creatures': { goal: [8, 14], years: [300_000, 1_200_000], entropy: 0.55 },
-  'Thinking Beasts': { goal: [6, 12], years: [50_000, 250_000], entropy: 0.78 },
-  Civilization: { goal: [6, 10], years: [1_000, 20_000], entropy: 1.18 },
-  'Ruin or Renewal': { goal: [4, 8], years: [50, 900], entropy: 1.7 },
+  Worldforming: { goal: [12, 20], years: [35_000_000, 120_000_000], entropy: 0.16 },
+  'First Life': { goal: [10, 18], years: [8_000_000, 30_000_000], entropy: 0.22 },
+  'Complex Life': { goal: [14, 22], years: [2_000_000, 8_000_000], entropy: 0.32 },
+  'Great Creatures': { goal: [12, 20], years: [300_000, 1_200_000], entropy: 0.46 },
+  'Thinking Beasts': { goal: [10, 18], years: [50_000, 250_000], entropy: 0.64 },
+  Civilization: { goal: [8, 15], years: [1_000, 20_000], entropy: 0.98 },
+  'Ruin or Renewal': { goal: [6, 14], years: [50, 900], entropy: 1.42 },
 };
 
 export const SEVERITIES = [
