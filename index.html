@@ -17,64 +17,86 @@
         <button id="restart-button" class="ghost-button" type="button">New World</button>
       </header>
 
-      <section class="choices-panel panel">
-        <div class="section-head section-head--choices">
-          <div>
-            <h2>Choose a World Force</h2>
-            <p>The game begins here. Choose one shaping to advance the age.</p>
-          </div>
+      <main class="game-grid">
+        <div class="status-column">
+          <section class="summary-panel panel">
+            <div class="stat-grid">
+              <article class="stat-card">
+                <span class="stat-card__label">Turn</span>
+                <strong id="turn-value">0</strong>
+              </article>
+              <article class="stat-card">
+                <span class="stat-card__label">Year</span>
+                <strong id="year-value">0</strong>
+              </article>
+              <article class="stat-card">
+                <span class="stat-card__label">Stage</span>
+                <strong id="stage-value">Worldforming</strong>
+              </article>
+              <article class="stat-card stat-card--wide">
+                <span class="stat-card__label">Age</span>
+                <strong id="age-value">The Silent Cradle</strong>
+              </article>
+            </div>
+
+            <div id="entity-strip" class="entity-strip">
+              <section class="entity-card entity-card--compact">
+                <div class="section-head">
+                  <h2>Dominant Species</h2>
+                  <span>One evolving line</span>
+                </div>
+                <h3 id="species-name">No dominant species yet</h3>
+                <p id="species-summary">The cradle is still being made.</p>
+              </section>
+
+              <section id="civ-card" class="entity-card entity-card--compact">
+                <div class="section-head">
+                  <h2>Civilization</h2>
+                  <span>Only after deep time</span>
+                </div>
+                <h3 id="civ-name">No civilization</h3>
+                <p id="civ-summary">No city has found its voice.</p>
+              </section>
+            </div>
+
+            <article class="meter-card">
+              <div class="meter-card__head">
+                <span id="meter-title">Habitability</span>
+                <strong id="meter-value">34</strong>
+              </div>
+              <div class="meter-track">
+                <div id="meter-fill" class="meter-fill"></div>
+              </div>
+              <p id="meter-label">The world resists the seed.</p>
+            </article>
+
+            <article class="meter-card meter-card--small">
+              <div class="meter-card__head">
+                <span>Stage Progress</span>
+                <strong id="stage-progress-label">0 / 0 stage turns</strong>
+              </div>
+              <div class="meter-track meter-track--thin">
+                <div id="stage-progress-fill" class="meter-fill meter-fill--soft"></div>
+              </div>
+            </article>
+
+            <article class="note-card">
+              <h2>World Rule</h2>
+              <p id="rules-note">You shape climate, oceans, stone, and sky. Life answers on its own.</p>
+              <p id="world-origin">Stone waits beneath a patient sun.</p>
+            </article>
+          </section>
+
+          <aside class="side-panel panel">
+            <section class="timeline-card">
+              <div class="section-head">
+                <h2>Timeline</h2>
+                <span>Recent turning points</span>
+              </div>
+              <ul id="history-list" class="timeline-list"></ul>
+            </section>
+          </aside>
         </div>
-        <div id="choices" class="choices-grid"></div>
-      </section>
-
-      <main class="dashboard">
-        <section class="summary-panel panel">
-          <div class="stat-grid">
-            <article class="stat-card">
-              <span class="stat-card__label">Turn</span>
-              <strong id="turn-value">0</strong>
-            </article>
-            <article class="stat-card">
-              <span class="stat-card__label">Year</span>
-              <strong id="year-value">0</strong>
-            </article>
-            <article class="stat-card">
-              <span class="stat-card__label">Stage</span>
-              <strong id="stage-value">Worldforming</strong>
-            </article>
-            <article class="stat-card stat-card--wide">
-              <span class="stat-card__label">Age</span>
-              <strong id="age-value">The Silent Cradle</strong>
-            </article>
-          </div>
-
-          <article class="meter-card">
-            <div class="meter-card__head">
-              <span id="meter-title">Habitability</span>
-              <strong id="meter-value">34</strong>
-            </div>
-            <div class="meter-track">
-              <div id="meter-fill" class="meter-fill"></div>
-            </div>
-            <p id="meter-label">The world resists the seed.</p>
-          </article>
-
-          <article class="meter-card meter-card--small">
-            <div class="meter-card__head">
-              <span>Stage Progress</span>
-              <strong id="stage-progress-label">0 / 0 stage turns</strong>
-            </div>
-            <div class="meter-track meter-track--thin">
-              <div id="stage-progress-fill" class="meter-fill meter-fill--soft"></div>
-            </div>
-          </article>
-
-          <article class="note-card">
-            <h2>World Rule</h2>
-            <p id="rules-note">You shape climate, oceans, stone, and sky. Life answers on its own.</p>
-            <p id="world-origin">Stone waits beneath a patient sun.</p>
-          </article>
-        </section>
 
         <section class="visual-panel panel">
           <div id="scene-root" class="scene" data-civilization="no">
@@ -111,33 +133,15 @@
           </section>
         </section>
 
-        <aside class="side-panel panel">
-          <section class="entity-card">
-            <div class="section-head">
-              <h2>Dominant Species</h2>
-              <span>Current lineage</span>
+        <section class="choices-panel panel">
+          <div class="section-head section-head--choices">
+            <div>
+              <h2>Choose a World Force</h2>
+              <p>Choose one shaping to advance the age.</p>
             </div>
-            <h3 id="species-name">No dominant species yet</h3>
-            <p id="species-summary">The cradle is still being made.</p>
-          </section>
-
-          <section class="entity-card">
-            <div class="section-head">
-              <h2>Civilization</h2>
-              <span>Only after deep time</span>
-            </div>
-            <h3 id="civ-name">No civilization</h3>
-            <p id="civ-summary">No city has found its voice.</p>
-          </section>
-
-          <section class="timeline-card">
-            <div class="section-head">
-              <h2>Timeline</h2>
-              <span>Recent turning points</span>
-            </div>
-            <ul id="history-list" class="timeline-list"></ul>
-          </section>
-        </aside>
+          </div>
+          <div id="choices" class="choices-grid"></div>
+        </section>
       </main>
     </div>
 

@@ -193,7 +193,7 @@ function stageOriginDescription(values) {
 }
 
 export class HistoryLog {
-  constructor(limit = 8) {
+  constructor(limit = 4) {
     this.limit = limit;
     this.entries = [];
   }
@@ -496,6 +496,17 @@ export class SpeciesSystem {
     this.rng = rng;
   }
 
+  splitName(name, habitat) {
+    const parts = name.split(' ');
+    if (parts.length === 1) {
+      return { prefix: pick(this.rng, habitatPrefixes[habitat]), noun: parts[0] };
+    }
+    return {
+      prefix: parts[0],
+      noun: parts[parts.length - 1],
+    };
+  }
+
   weightedLineage(habitat) {
     const weights = {
       aquatic: [['fish', 4], ['shark', 3], ['bird', 1], ['primate', 1], ['bug', 1]],
@@ -528,6 +539,19 @@ export class SpeciesSystem {
     return `${prefix} ${noun}`;
   }
 
+  evolveName(lineage, habitat, previous, fallbackNames) {
+    if (!previous) return this.composeName(lineage, habitat, previous, fallbackNames);
+    const { prefix: previousPrefix, noun: previousNoun } = this.splitName(previous.name, previous.habitat ?? habitat);
+    if (this.rng() < 0.78) return previous.name;
+    const prefix = previous.habitat !== habitat && this.rng() < 0.52
+      ? pick(this.rng, habitatPrefixes[habitat])
+      : previousPrefix;
+    const noun = previous.lineage === lineage || this.rng() < 0.72
+      ? previousNoun
+      : pick(this.rng, lineageNouns[lineage]);
+    return `${prefix} ${noun}`;
+  }
+
   describeLineage(lineage, habitat, behaviorKeys, collective) {
     if (lineage === 'fish' && habitat === 'aerial') return 'Born of fish. It has taken to the high air.';
     if (lineage === 'bird' && habitat === 'aquatic') return 'Born of birds. It has entered the open water like a whale.';
@@ -542,6 +566,41 @@ export class SpeciesSystem {
     return null;
   }
 
+  describeContinuity(previous, current) {
+    if (!previous) return null;
+    const lines = [];
+    if (previous.habitat !== current.habitat) {
+      const habitatLines = {
+        aquatic: 'The old line has entered the water.',
+        amphibious: 'The old line now keeps to shore, marsh, and tide.',
+        terrestrial: 'The old line has accepted the long burden of land.',
+        aerial: 'The old line has lifted itself into the high air.',
+        subterranean: 'The old line has gone beneath root and stone.',
+      };
+      lines.push(habitatLines[current.habitat]);
+    }
+    if (previous.lineage !== current.lineage) {
+      lines.push('The old line keeps its memory while the body changes.');
+    }
+    if (!previous.collective && current.collective) {
+      lines.push('Its scattered wills now lean together.');
+    }
+    if (!previous.toolCapable && current.toolCapable) {
+      lines.push('It now keeps and repeats what it has learned.');
+    }
+    if (!lines.length) lines.push('The old line endures and refines itself.');
+    return lines.join(' ');
+  }
+
+  describeTransition(previous, current) {
+    if (!previous) return `${current.name} becomes the first dominant lineage.`;
+    if ((previous.rootName ?? previous.name) === (current.rootName ?? current.name)) {
+      if (previous.name === current.name) return `${current.name} endures and takes a new form.`;
+      return `${previous.name} changes into ${current.name}.`;
+    }
+    return `${current.name} rises from ${previous.name}.`;
+  }
+
   generate(state, previous = null) {
     const biases = state.derivedBiases();
     const habitat = this.pickHabitat(biases);
@@ -553,12 +612,7 @@ export class SpeciesSystem {
     const bugCandidates = names.filter((candidate) => bugPattern.test(candidate));
     const bugBias = lineage === 'bug' || behaviorKeys.includes('Cooperation') || biases.subterranean > 6 || biases.aerial > 8;
     const fallbackPool = bugCandidates.length && bugBias && this.rng() < 0.72 ? bugCandidates : names;
-    let name = this.composeName(lineage, habitat, previous, fallbackPool);
-    if (previous && this.rng() < 0.34) {
-      const carry = previous.name.split(' ')[0];
-      const rest = name.split(' ').slice(1).join(' ');
-      name = rest ? `${carry} ${rest}` : name;
-    }
+    const name = this.evolveName(lineage, habitat, previous, fallbackPool);
     const behaviors = behaviorKeys.map((key) => pick(this.rng, SPECIES_POOLS.behaviors[key]));
     const mindful = state.stage === 'Thinking Beasts' || state.stage === 'Civilization' || state.stage === 'Ruin or Renewal';
     const toolCapable = mindful && state.mindEchoes >= 1 && biases.Curiosity > 7;
@@ -566,11 +620,20 @@ export class SpeciesSystem {
     const collective = bugLike
       ? behaviorKeys.includes('Cooperation') || biases.Curiosity > 5 || biases.Adaptability > 6
       : behaviorKeys.includes('Cooperation') && (biases.Curiosity > 6 || biases.Adaptability > 6);
+    const current = {
+      name,
+      lineage,
+      habitat,
+      collective,
+      toolCapable,
+    };
     const summaryParts = [
       `${name}.`,
       `${behaviors[0]} and ${behaviors[1]}.`,
       habitatDescriptions[habitat],
     ];
+    const continuityLine = this.describeContinuity(previous, current);
+    if (continuityLine) summaryParts.push(continuityLine);
     const lineageLine = this.describeLineage(lineage, habitat, behaviorKeys, collective);
     if (lineageLine) summaryParts.push(lineageLine);
     if (bugLike) summaryParts.push('Small bodies move in ruthless number.');
@@ -580,6 +643,8 @@ export class SpeciesSystem {
     }
     return {
       name,
+      rootName: previous?.rootName ?? previous?.name ?? name,
+      evolutionCount: (previous?.evolutionCount ?? 0) + (previous ? 1 : 0),
       lineage,
       habitat,
       behaviors: behaviorKeys,
@@ -924,9 +989,11 @@ export class AgeSystem {
     const lines = [`${state.currentAge} begins.`];
 
     if (state.stage !== 'Worldforming') {
-      state.dominantSpecies = this.speciesSystem.generate(state, state.dominantSpecies);
-      history.add(state.year, state.turn, 'species', `${state.dominantSpecies.name} rises to dominance.`);
-      lines.push(`${state.dominantSpecies.name} rises to dominance.`);
+      const previousSpecies = state.dominantSpecies;
+      state.dominantSpecies = this.speciesSystem.generate(state, previousSpecies);
+      const speciesLine = this.speciesSystem.describeTransition(previousSpecies, state.dominantSpecies);
+      history.add(state.year, state.turn, 'species', speciesLine);
+      lines.push(speciesLine);
     }
     return lines;
   }
@@ -949,7 +1016,7 @@ export class StageManager {
       state.dominantSpecies = this.speciesSystem.generate(state);
       history.add(state.year, state.turn, 'stage', state.worldOrigin);
       history.add(state.year, state.turn, 'stage', 'First life takes hold.');
-      history.add(state.year, state.turn, 'species', `${state.dominantSpecies.name} becomes the first dominant lineage.`);
+      history.add(state.year, state.turn, 'species', this.speciesSystem.describeTransition(null, state.dominantSpecies));
       lines.push(state.worldOrigin, 'First life takes hold.');
       return lines;
     }
@@ -957,9 +1024,10 @@ export class StageManager {
       state.setStage('Complex Life');
       state.life = Math.max(state.life, 58);
       state.currentAge = 'The Age of Many Shapes';
-      state.dominantSpecies = this.speciesSystem.generate(state, state.dominantSpecies);
+      const previousSpecies = state.dominantSpecies;
+      state.dominantSpecies = this.speciesSystem.generate(state, previousSpecies);
       history.add(state.year, state.turn, 'stage', 'Complex life claims the world.');
-      history.add(state.year, state.turn, 'species', `${state.dominantSpecies.name} leads the new abundance.`);
+      history.add(state.year, state.turn, 'species', this.speciesSystem.describeTransition(previousSpecies, state.dominantSpecies));
       lines.push('Bodies grow stranger and more capable.', 'Complex life claims the world.');
       return lines;
     }
@@ -971,9 +1039,10 @@ export class StageManager {
         state.setStage('Great Creatures');
         state.life = Math.max(state.life, 46);
         state.biosphereMomentum = Math.max(state.biosphereMomentum, 3);
-        state.dominantSpecies = this.speciesSystem.generate(state, state.dominantSpecies);
+        const previousSpecies = state.dominantSpecies;
+        state.dominantSpecies = this.speciesSystem.generate(state, previousSpecies);
         history.add(state.year, state.turn, 'stage', 'Great creatures rise from the swarm of forms.');
-        history.add(state.year, state.turn, 'species', `${state.dominantSpecies.name} now commands the age.`);
+        history.add(state.year, state.turn, 'species', this.speciesSystem.describeTransition(previousSpecies, state.dominantSpecies));
         lines.push('Great creatures rise from the swarm of forms.');
       }
     } else if (state.stage === 'Great Creatures' && state.stageTurn >= state.stageGoal) {
@@ -984,8 +1053,10 @@ export class StageManager {
         state.setStage('Thinking Beasts');
         state.life = Math.max(state.life, 40);
         state.biosphereMomentum = Math.max(state.biosphereMomentum, 4);
-        state.dominantSpecies = this.speciesSystem.generate(state, state.dominantSpecies);
+        const previousSpecies = state.dominantSpecies;
+        state.dominantSpecies = this.speciesSystem.generate(state, previousSpecies);
         history.add(state.year, state.turn, 'stage', 'Thinking beasts awaken.');
+        history.add(state.year, state.turn, 'species', this.speciesSystem.describeTransition(previousSpecies, state.dominantSpecies));
         lines.push('A dominant beast begins to study cause and consequence.');
       }
     } else if (state.stage === 'Thinking Beasts' && state.civilization && state.stageTurn >= 2) {
@@ -1062,7 +1133,7 @@ export class GameLoop {
       lines.push(this.state.finalText);
     }
 
-    this.state.recentConsequences = lines.slice(-5);
+    this.state.recentConsequences = lines.slice(-4);
     this.currentChoices = this.state.extinct ? [] : this.decisionGenerator.generate(this.state);
     return this.viewModel();
   }

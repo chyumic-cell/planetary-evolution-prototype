@@ -29,8 +29,10 @@ export class PlanetUI {
     this.rulesNote = root.querySelector('#rules-note');
     this.worldSigns = root.querySelector('#world-signs');
     this.consequences = root.querySelector('#consequences');
+    this.entityStrip = root.querySelector('#entity-strip');
     this.speciesName = root.querySelector('#species-name');
     this.speciesSummary = root.querySelector('#species-summary');
+    this.civCard = root.querySelector('#civ-card');
     this.civName = root.querySelector('#civ-name');
     this.civSummary = root.querySelector('#civ-summary');
     this.historyList = root.querySelector('#history-list');
@@ -80,9 +82,13 @@ export class PlanetUI {
     }
 
     if (model.civilization) {
+      this.civCard.hidden = false;
+      this.entityStrip.classList.remove('entity-strip--single');
       this.civName.textContent = model.civilization.name;
       this.civSummary.textContent = model.civilization.summary;
     } else {
+      this.civCard.hidden = true;
+      this.entityStrip.classList.add('entity-strip--single');
       this.civName.textContent = 'No civilization';
       this.civSummary.textContent = 'No city has found its voice.';
     }
