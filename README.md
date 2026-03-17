@@ -1,24 +1,20 @@
 ﻿# Planetary Evolution Prototype
 
-A text based, turn based planetary evolution simulation written in Python.
+A browser playable planetary evolution simulation designed for GitHub Pages.
 
-## Features
+## Play
 
-- Hidden planetary variables and derived habitat and behavior biases
-- Guaranteed early stages followed by emergent late eras
-- Dynamic age triggers, species evolution, civilization rise and collapse
-- Delayed consequences and hidden entropy
-- Terminal interface with a narrative timeline
-- No victory state, only survival until extinction
+Open the GitHub Pages site for this repository or open `index.html` in a browser.
 
-## Run
+## What Changed
 
-```bash
-python main.py
-```
+- Clearer decision titles
+- A fixed screen interface instead of an endless text stream
+- Animated world layers for water, storm, fire, life, and civilization
+- Slower intelligence growth with intelligence resetting during major ages
+- No direct player control over life itself
+- Hundreds of possible decision combinations generated from severity and world force templates
 
-For an automated test run:
+## Legacy Prototype
 
-```bash
-python main.py --auto
-```
+The earlier terminal Python prototype is still included in `main.py` and `planetary_evolution/` as reference material.
