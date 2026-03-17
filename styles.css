@@ -18,6 +18,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -104,6 +108,7 @@ h1 {
   display: grid;
   gap: 20px;
   grid-template-columns: minmax(250px, 320px) minmax(420px, 1.25fr) minmax(260px, 340px);
+  align-items: start;
 }
 
 .panel {
@@ -550,8 +555,11 @@ h1 {
     grid-template-columns: 1fr;
   }
 
-  .sign-grid,
   .choices-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sign-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -573,6 +581,10 @@ h1 {
 
   .stat-card--wide {
     grid-column: span 1;
+  }
+
+  .choices-grid {
+    grid-template-columns: 1fr;
   }
 
   .scene {
