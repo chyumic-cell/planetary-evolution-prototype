@@ -76,8 +76,8 @@ export const DECISION_TEMPLATES = [
     stages: allStages,
     titleVariants: ['Tidal Balance', 'Gentle Tides', 'Coastal Pull', 'Shoreline Rhythm', 'Harboring Seas'],
     subtitle: 'The coasts learn a steadier pulse.',
-    effects: effectMap({ Warmth: -1, Moisture: 2, Tempest: -2, Upheaval: -1, Oceans: 3, Fertility: 1, Diversity: 1, Ingenuity: 0, Dominance: -1 }),
-    delayed: [delayed([2, 5], { Oceans: 1, Fertility: 1, Diversity: 1 }, 'Tidal flats become nurseries.')],
+    effects: effectMap({ Warmth: -1, Moisture: 2, Tempest: -2, Upheaval: -1, Oceans: 3, Fertility: 1, Diversity: 1, Ingenuity: 1, Dominance: -1 }),
+    delayed: [delayed([2, 5], { Oceans: 1, Fertility: 1, Diversity: 1, Ingenuity: 1 }, 'Tidal flats become nurseries.')],
     poetry: ['The moon tugs with care.', 'Shore and sea trade ground.', 'Shelter appears.'],
   },
   {
@@ -88,8 +88,8 @@ export const DECISION_TEMPLATES = [
     stages: earlyStages,
     titleVariants: ['Basin Carving', 'Valley Cutting', 'River Basins', 'Deep Channels', 'Catchment Plains'],
     subtitle: 'Stone is opened to hold water and silt.',
-    effects: effectMap({ Warmth: 0, Moisture: 2, Tempest: -1, Upheaval: 1, Oceans: 1, Fertility: 3, Diversity: 0, Ingenuity: 0, Dominance: -1 }),
-    delayed: [delayed([2, 4], { Fertility: 2, Diversity: 1, Upheaval: -1 }, 'Sediment settles where life can use it.')],
+    effects: effectMap({ Warmth: 0, Moisture: 2, Tempest: -1, Upheaval: 1, Oceans: 1, Fertility: 3, Diversity: 0, Ingenuity: 1, Dominance: -1 }),
+    delayed: [delayed([2, 4], { Fertility: 2, Diversity: 1, Upheaval: -1, Ingenuity: 1 }, 'Sediment settles where life can use it.')],
     poetry: ['Rivers remember the slope.', 'Stone yields a little.', 'Basins hold tomorrow.'],
   },
   {
@@ -136,8 +136,8 @@ export const DECISION_TEMPLATES = [
     stages: livingStages,
     titleVariants: ['Reef Shelf Lift', 'Shallow Reefs', 'Coral Platforms', 'Shelf Bloom', 'Warm Shoals'],
     subtitle: 'Shallow seas spread broad feeding grounds.',
-    effects: effectMap({ Warmth: 1, Moisture: 1, Tempest: -1, Upheaval: -1, Oceans: 2, Fertility: 2, Diversity: 2, Ingenuity: 0, Dominance: -1 }),
-    delayed: [delayed([2, 4], { Diversity: 2, Fertility: 1, Oceans: 1 }, 'The shelves become nurseries of many forms.')],
+    effects: effectMap({ Warmth: 1, Moisture: 1, Tempest: -1, Upheaval: -1, Oceans: 2, Fertility: 2, Diversity: 2, Ingenuity: 1, Dominance: -1 }),
+    delayed: [delayed([2, 4], { Diversity: 2, Fertility: 1, Oceans: 1, Ingenuity: 1 }, 'The shelves become nurseries of many forms.')],
     poetry: ['The shallows brighten.', 'Edges teem with mouths and color.', 'Abundance broadens.'],
   },
   {
@@ -149,7 +149,7 @@ export const DECISION_TEMPLATES = [
     titleVariants: ['Monsoon Shift', 'Seasonal Rains', 'Swinging Wet Season', 'Rain Turn', 'Moving Storm Season'],
     subtitle: 'Water arrives in one place and leaves another wanting.',
     effects: effectMap({ Warmth: 0, Moisture: 3, Tempest: 2, Upheaval: 0, Oceans: 1, Fertility: 1, Diversity: 1, Ingenuity: 0, Dominance: 0 }),
-    delayed: [delayed([2, 4], { Moisture: -2, Fertility: 1, Dominance: 1 }, 'The wet season moves on and old rivals return.')],
+    delayed: [delayed([2, 4], { Moisture: -2, Fertility: 1, Ingenuity: 1, Dominance: 1 }, 'The wet season moves on and old rivals return.')],
     poetry: ['The sky changes its route.', 'Some valleys drink deeply.', 'Others are forgotten.'],
   },
   {
@@ -173,7 +173,7 @@ export const DECISION_TEMPLATES = [
     titleVariants: ['Moon Tug', 'Orbital Pull', 'Lunar Heave', 'Tidal Moonrise', 'Silver Pull'],
     subtitle: 'The tides and seasons answer a stronger distant hand.',
     effects: effectMap({ Warmth: 0, Moisture: 1, Tempest: 1, Upheaval: 1, Oceans: 3, Fertility: 1, Diversity: 0, Ingenuity: 0, Dominance: 0 }),
-    delayed: [delayed([3, 5], { Oceans: 1, Tempest: 1, Diversity: 1 }, 'Coasts change shape under repeated strain.')],
+    delayed: [delayed([3, 5], { Oceans: 1, Tempest: 1, Diversity: 1, Ingenuity: 1 }, 'Coasts change shape under repeated strain.')],
     poetry: ['The distant stone leans closer.', 'Waters climb farther inland.', 'Rhythm grows stronger.'],
   },
   {
@@ -208,8 +208,8 @@ export const DECISION_TEMPLATES = [
     stages: allStages,
     titleVariants: ['Inland Sea Breach', 'Saltwater Inlet', 'Broken Isthmus', 'Open Basin Sea', 'Flooded Interior'],
     subtitle: 'Water enters the heartland and changes every border.',
-    effects: effectMap({ Warmth: 1, Moisture: 2, Tempest: 1, Upheaval: 1, Oceans: 3, Fertility: 1, Diversity: 1, Ingenuity: 0, Dominance: 1 }),
-    delayed: [delayed([2, 4], { Fertility: -1, Diversity: 1, Dominance: 1 }, 'New coasts bring crowded competition.')],
+    effects: effectMap({ Warmth: 1, Moisture: 2, Tempest: 1, Upheaval: 1, Oceans: 3, Fertility: 1, Diversity: 1, Ingenuity: 1, Dominance: 1 }),
+    delayed: [delayed([2, 4], { Fertility: -1, Diversity: 1, Ingenuity: 1, Dominance: 1 }, 'New coasts bring crowded competition.')],
     poetry: ['The interior drowns in salt.', 'New shores appear overnight.', 'Old territories vanish.'],
   },
   {
@@ -220,8 +220,8 @@ export const DECISION_TEMPLATES = [
     stages: allStages,
     titleVariants: ['Rift Valley Opening', 'Fresh Rift', 'Split Valley', 'Young Chasm', 'Breaking Plateau'],
     subtitle: 'New edges form, and new hazards with them.',
-    effects: effectMap({ Warmth: 1, Moisture: 1, Tempest: 1, Upheaval: 3, Oceans: 0, Fertility: 1, Diversity: 1, Ingenuity: 1, Dominance: 0 }),
-    delayed: [delayed([2, 5], { Fertility: 2, Diversity: 1, Upheaval: -1 }, 'Minerals and microclimates gather along the wound.')],
+    effects: effectMap({ Warmth: 1, Moisture: 1, Tempest: 1, Upheaval: 3, Oceans: 0, Fertility: 1, Diversity: 1, Ingenuity: 2, Dominance: 0 }),
+    delayed: [delayed([2, 5], { Fertility: 2, Diversity: 1, Upheaval: -1, Ingenuity: 1 }, 'Minerals and microclimates gather along the wound.')],
     poetry: ['The crust parts.', 'Shelter and danger share a border.', 'The wound attracts life.'],
   },
   {

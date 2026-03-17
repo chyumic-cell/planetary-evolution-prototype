@@ -304,8 +304,13 @@ export class PlanetState {
   }
 
   ensureGuaranteedSurvival() {
-    if (this.stage === 'First Life' && this.life < 14) this.life = 14;
-    if (this.stage === 'Complex Life' && this.life < 12) this.life = 12;
+    if (this.stage === 'First Life' && this.life < 18) {
+      this.life = 18;
+      return;
+    }
+    if (this.stage === 'Complex Life' && this.stageTurn < this.stageGoal && this.life < 16) {
+      this.life = 16;
+    }
   }
 
   crisisActive() {
@@ -506,7 +511,9 @@ export class CivilizationSystem {
     if (state.civilization || !state.dominantSpecies) return false;
     if (!['Thinking Beasts', 'Civilization', 'Ruin or Renewal'].includes(state.stage)) return false;
     const biases = state.derivedBiases();
-    return state.stageTurn >= 3 && state.ageCount >= 6 && state.mindEchoes >= 2 && state.variables.Ingenuity >= 12 && (biases.Curiosity > 8 || biases.Cooperation > 8 || biases.Aggression > 8);
+    const socialPressure = Math.max(biases.Curiosity, biases.Cooperation, biases.Aggression);
+    const readiness = state.variables.Ingenuity >= 4 || state.dominantSpecies.toolCapable || biases.Curiosity > 5;
+    return state.stageTurn >= 1 && state.life >= 18 && state.ageCount >= 3 && state.mindEchoes >= 1 && readiness && socialPressure > 5;
   }
 
   createCivilization(state) {
@@ -647,7 +654,8 @@ export class EntropySystem {
       state.updateMeter(delta);
       return delta;
     }
-    let delta = Math.round(support / 8 - state.entropy * (0.3 + state.stageIndex() * 0.07) - state.civilizationPressure());
+    const earlyMercy = state.stage === 'First Life' ? 2 : state.stage === 'Complex Life' ? 1 : 0;
+    let delta = Math.round(support / 10 + earlyMercy - state.entropy * (0.18 + state.stageIndex() * 0.05) - state.civilizationPressure());
     if (state.stage === 'Civilization') delta -= 1;
     if (state.stage === 'Ruin or Renewal') delta -= 2;
     state.updateMeter(delta);
@@ -726,8 +734,12 @@ export class StageManager {
       return lines;
     }
     if (state.stage === 'Complex Life' && state.stageTurn >= state.stageGoal) {
-      if (state.life >= 42 && state.ageCount >= 2 && state.variables.Diversity > 5) {
+      const biases = state.derivedBiases();
+      const readyForGiants = state.life >= 30 && state.ageCount >= 2 && (state.variables.Diversity > 3 || biases.Adaptability > 5);
+      const overdueAscent = state.stageTurn >= state.stageGoal + 5 && state.ageCount >= 1 && (state.variables.Diversity > 0 || biases.Resilience > 4);
+      if (readyForGiants || overdueAscent) {
         state.setStage('Great Creatures');
+        state.life = Math.max(state.life, 42);
         state.dominantSpecies = this.speciesSystem.generate(state, state.dominantSpecies);
         history.add(state.year, state.turn, 'stage', 'Great creatures rise from the swarm of forms.');
         history.add(state.year, state.turn, 'species', `${state.dominantSpecies.name} now commands the age.`);
@@ -735,14 +747,18 @@ export class StageManager {
       }
     } else if (state.stage === 'Great Creatures' && state.stageTurn >= state.stageGoal) {
       const biases = state.derivedBiases();
-      if (state.life >= 40 && state.ageCount >= 4 && state.mindEchoes >= 1 && biases.Curiosity > 6) {
+      const readyForThought = state.life >= 26 && state.ageCount >= 3 && (state.mindEchoes >= 1 || state.variables.Ingenuity >= 8) && biases.Curiosity > 4;
+      const overdueAwakening = state.stageTurn >= state.stageGoal + 4 && state.ageCount >= 2 && biases.Curiosity > 3;
+      if (readyForThought || overdueAwakening) {
         state.setStage('Thinking Beasts');
+        state.life = Math.max(state.life, 36);
         state.dominantSpecies = this.speciesSystem.generate(state, state.dominantSpecies);
         history.add(state.year, state.turn, 'stage', 'Thinking beasts awaken.');
         lines.push('A dominant beast begins to study cause and consequence.');
       }
-    } else if (state.stage === 'Thinking Beasts' && state.civilization && state.stageTurn >= 4) {
+    } else if (state.stage === 'Thinking Beasts' && state.civilization && state.stageTurn >= 2) {
       state.setStage('Civilization');
+      state.life = Math.max(state.life, 32);
       history.add(state.year, state.turn, 'stage', 'Cities and laws begin to spread.');
       lines.push('Cities and laws begin to spread.');
     } else if (state.stage === 'Civilization') {
