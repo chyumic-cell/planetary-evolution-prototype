@@ -301,21 +301,22 @@ export const DECISION_TEMPLATES = [
 export const SPECIES_POOLS = {
   habitats: {
     aquatic: ['Reef Schools', 'Shellbacks', 'River Striders', 'Glass Eels', 'Tide Grazers'],
-    amphibious: ['Marsh Walkers', 'Delta Crawlers', 'Reed Hunters', 'Bog Striders', 'Shore Herders'],
-    terrestrial: ['Stonebacks', 'Plain Runners', 'Forest Grazer Clans', 'Dune Sloths', 'Tall Browsers'],
-    aerial: ['Gliders', 'Sky Kites', 'Storm Wings', 'Ash Moths', 'Cloud Herons'],
-    subterranean: ['Burrow Hives', 'Mole Houses', 'Root Burrowers', 'Deep Ants', 'Tunnel Herds'],
+    amphibious: ['Marsh Walkers', 'Delta Crawlers', 'Reed Hunters', 'Bog Striders', 'Shore Herders', 'Marsh Scarabs'],
+    terrestrial: ['Stonebacks', 'Plain Runners', 'Forest Grazer Clans', 'Dune Sloths', 'Tall Browsers', 'Mound Beetles'],
+    aerial: ['Gliders', 'Sky Kites', 'Storm Wings', 'Ash Moths', 'Cloud Herons', 'Locust Veils'],
+    subterranean: ['Burrow Hives', 'Mole Houses', 'Root Burrowers', 'Deep Ants', 'Tunnel Herds', 'Beetle Choirs', 'Chitin Swarms'],
   },
   behaviors: {
-    Cooperation: ['choral', 'pack bound', 'nest sharing', 'kin woven'],
+    Cooperation: ['choral', 'pack bound', 'nest sharing', 'kin woven', 'hive bound'],
     Aggression: ['predatory', 'territorial', 'raiding', 'crowned by violence'],
     Adaptability: ['migratory', 'quick changing', 'opportunistic', 'broad feeding'],
-    Curiosity: ['tool minded', 'pattern watching', 'experimenting', 'far seeing'],
+    Curiosity: ['tool minded', 'pattern watching', 'experimenting', 'far seeing', 'signal reading'],
     Resilience: ['plated', 'hard shelled', 'storm tested', 'long enduring'],
   },
 };
 
 export const CIVILIZATION_SUFFIXES = ['League', 'Compact', 'Dominion', 'Archive', 'Choir', 'Forum', 'Remnant'];
+export const SWARM_SUFFIXES = ['Swarm', 'Brood', 'Nest', 'Synod', 'Hive'];
 
 export const FINAL_LINES = [
   'The world is quiet again.',

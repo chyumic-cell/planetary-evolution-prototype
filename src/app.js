@@ -3,10 +3,27 @@ import { PlanetUI } from './ui.js';
 
 let game;
 
+function scoreSwarmChoice(model, choice) {
+  const effects = choice.immediate ?? {};
+  const lifeEmergency = model.meterValue < 42 ? 10 : 0;
+  const earlyGuard = ['Worldforming', 'First Life', 'Complex Life'].includes(model.stage) ? 3 : 0;
+  return (effects.Upheaval ?? 0) * 2.3
+    + (effects.Ingenuity ?? 0) * 3
+    + (effects.Diversity ?? 0) * 1.2
+    + (effects.Fertility ?? 0) * 1.4
+    + (effects.Dominance ?? 0) * 0.9
+    - Math.max(0, (effects.Tempest ?? 0) - 1) * 1.5
+    + (choice.category === 'stabilizing' ? lifeEmergency + earlyGuard : 0)
+    + ((effects.Moisture ?? 0) > 0 ? 0.8 : 0);
+}
+
 function pickAutoplayChoice(model, index, mode) {
   if (!model.choices.length) return null;
   if (mode === 'risk') return model.choices[2] ?? model.choices[model.choices.length - 1];
   if (mode === 'stability') return model.choices[0];
+  if (mode === 'swarm') {
+    return [...model.choices].sort((left, right) => scoreSwarmChoice(model, right) - scoreSwarmChoice(model, left))[0];
+  }
   return model.choices[index % model.choices.length];
 }
 
@@ -48,4 +65,18 @@ function boot() {
   window.__planetGame = { game, model };
 }
 
-boot();
+try {
+  boot();
+} catch (error) {
+  console.error(error);
+  const crash = document.createElement('pre');
+  crash.id = 'boot-error';
+  crash.textContent = error.stack ?? error.message;
+  crash.style.whiteSpace = 'pre-wrap';
+  crash.style.padding = '16px';
+  crash.style.margin = '16px';
+  crash.style.borderRadius = '16px';
+  crash.style.background = 'rgba(90, 20, 20, 0.9)';
+  crash.style.color = '#fff';
+  document.body.prepend(crash);
+}

@@ -7,6 +7,7 @@ import {
   SPECIES_POOLS,
   STAGE_CONFIGS,
   STAGE_ORDER,
+  SWARM_SUFFIXES,
   VARIABLES,
 } from './game-data.js';
 
@@ -84,6 +85,49 @@ const civEthos = {
   craft: 'It honors inquiry and invention.',
   endure: 'It honors endurance above comfort.',
   order: 'It honors order because chaos has a long memory.',
+};
+
+const bugPattern = /(Ant|Moth|Beetle|Scarab|Locust|Chitin|Hive|Swarm)/i;
+
+const lineageOrigins = {
+  fish: 'fish',
+  shark: 'sharks',
+  bird: 'birds',
+  bug: 'bugs',
+  grazer: 'grazers',
+  primate: 'primates',
+  reptile: 'reptiles',
+  sloth: 'sloths',
+};
+
+const lineageNouns = {
+  fish: ['Fins', 'Eels', 'Shoals'],
+  shark: ['Sharks'],
+  bird: ['Herons', 'Kites', 'Larks', 'Wings'],
+  bug: ['Ants', 'Scarabs', 'Moths', 'Locusts'],
+  grazer: ['Deer', 'Browsers', 'Harts'],
+  primate: ['Monkeys', 'Apes'],
+  reptile: ['Lizards', 'Drakes'],
+  sloth: ['Sloths'],
+};
+
+const habitatPrefixes = {
+  aquatic: ['Sea', 'Reef', 'Tide'],
+  amphibious: ['Marsh', 'Delta', 'Shore'],
+  terrestrial: ['Plain', 'Stone', 'Forest'],
+  aerial: ['Sky', 'Cloud', 'Storm'],
+  subterranean: ['Burrow', 'Root', 'Deep'],
+};
+
+const naturalLineageHabitats = {
+  fish: 'aquatic',
+  shark: 'aquatic',
+  bird: 'aerial',
+  bug: 'subterranean',
+  grazer: 'terrestrial',
+  primate: 'terrestrial',
+  reptile: 'terrestrial',
+  sloth: 'terrestrial',
 };
 
 const effectPhrases = {
@@ -366,11 +410,12 @@ export class DecisionGenerator {
       candidates.push(this.buildOption(state, template, severity, variant));
     }
 
-    return [
-      this.selectByCategory(state, candidates, 'stabilizing'),
-      this.selectByCategory(state, candidates, 'destabilizing'),
-      this.selectByCategory(state, candidates, 'ambiguous'),
-    ];
+    const used = new Set();
+    return ['stabilizing', 'destabilizing', 'ambiguous'].map((category) => {
+      const choice = this.selectByCategory(state, candidates, category, used) ?? this.selectByCategory(state, candidates, category);
+      if (choice) used.add(choice.id);
+      return choice;
+    }).filter(Boolean);
   }
 
   pickCategory(state) {
@@ -407,9 +452,12 @@ export class DecisionGenerator {
     };
   }
 
-  selectByCategory(state, candidates, category) {
-    const pool = candidates.filter((candidate) => candidate.category === category);
-    const ranked = pool.sort((left, right) => this.score(state, right) - this.score(state, left));
+  selectByCategory(state, candidates, category, used = new Set()) {
+    const pool = candidates.filter((candidate) => candidate.category === category && !used.has(candidate.id));
+    const fallbackPool = candidates.filter((candidate) => !used.has(candidate.id));
+    const source = pool.length ? pool : fallbackPool;
+    if (!source.length) return null;
+    const ranked = [...source].sort((left, right) => this.score(state, right) - this.score(state, left));
     return pick(this.rng, ranked.slice(0, Math.min(3, ranked.length)));
   }
 
@@ -431,6 +479,52 @@ export class SpeciesSystem {
     this.rng = rng;
   }
 
+  weightedLineage(habitat) {
+    const weights = {
+      aquatic: [['fish', 4], ['shark', 3], ['bird', 1], ['primate', 1], ['bug', 1]],
+      amphibious: [['fish', 2], ['bird', 2], ['bug', 2], ['primate', 2], ['grazer', 1], ['shark', 1]],
+      terrestrial: [['grazer', 3], ['primate', 2], ['reptile', 2], ['sloth', 2], ['bird', 1], ['bug', 1], ['shark', 1]],
+      aerial: [['bird', 4], ['bug', 3], ['fish', 1], ['shark', 1]],
+      subterranean: [['bug', 5], ['reptile', 2], ['grazer', 2], ['primate', 1], ['fish', 1]],
+    };
+    const pool = weights[habitat] ?? weights.terrestrial;
+    const total = pool.reduce((sum, [, weight]) => sum + weight, 0);
+    let roll = this.rng() * total;
+    for (const [lineage, weight] of pool) {
+      roll -= weight;
+      if (roll <= 0) return lineage;
+    }
+    return pool[pool.length - 1][0];
+  }
+
+  pickLineage(habitat, previous) {
+    if (previous?.lineage && this.rng() < 0.68) return previous.lineage;
+    return this.weightedLineage(habitat);
+  }
+
+  composeName(lineage, habitat, previous, fallbackNames) {
+    if (this.rng() < 0.42) return pick(this.rng, fallbackNames);
+    const prefix = pick(this.rng, habitatPrefixes[habitat]);
+    const nounPool = lineageNouns[lineage];
+    const inheritedNoun = previous?.lineage === lineage ? previous.name.split(' ').slice(-1)[0] : null;
+    const noun = inheritedNoun && this.rng() < 0.55 ? inheritedNoun : pick(this.rng, nounPool);
+    return `${prefix} ${noun}`;
+  }
+
+  describeLineage(lineage, habitat, behaviorKeys, collective) {
+    if (lineage === 'fish' && habitat === 'aerial') return 'Born of fish. It has taken to the high air.';
+    if (lineage === 'bird' && habitat === 'aquatic') return 'Born of birds. It has entered the open water like a whale.';
+    if (lineage === 'shark' && habitat === 'terrestrial') return 'Born of sharks. It now walks on land.';
+    if (lineage === 'primate' && habitat === 'aquatic') return 'Born of primates. It lives its full life in water.';
+    if (lineage === 'grazer' && behaviorKeys.includes('Aggression')) return 'Born of grazers. Its old grazing mouth now seeks flesh.';
+    if (lineage === 'grazer' && collective) return 'The herd has bent toward one mind.';
+    if (lineage === 'bug' && habitat === 'aquatic') return 'Born of bugs. It has entered the water without surrendering the swarm.';
+    if (lineage === 'bird' && habitat === 'subterranean') return 'Born of birds. It nests now in root dark and stone.';
+    if (lineage === 'fish' && habitat === 'terrestrial') return 'Born of fish. It has learned the long weight of land.';
+    if (naturalLineageHabitats[lineage] !== habitat) return `Born of ${lineageOrigins[lineage]}. It has learned the way of ${habitat.replace('subterranean', 'the underworld')}.`;
+    return null;
+  }
+
   generate(state, previous = null) {
     const biases = state.derivedBiases();
     const habitat = this.pickHabitat(biases);
@@ -438,7 +532,11 @@ export class SpeciesSystem {
       .sort((left, right) => biases[right] - biases[left])
       .slice(0, 2);
     const names = SPECIES_POOLS.habitats[habitat];
-    let name = pick(this.rng, names);
+    const lineage = this.pickLineage(habitat, previous);
+    const bugCandidates = names.filter((candidate) => bugPattern.test(candidate));
+    const bugBias = lineage === 'bug' || behaviorKeys.includes('Cooperation') || biases.subterranean > 6 || biases.aerial > 8;
+    const fallbackPool = bugCandidates.length && bugBias && this.rng() < 0.72 ? bugCandidates : names;
+    let name = this.composeName(lineage, habitat, previous, fallbackPool);
     if (previous && this.rng() < 0.34) {
       const carry = previous.name.split(' ')[0];
       const rest = name.split(' ').slice(1).join(' ');
@@ -447,20 +545,31 @@ export class SpeciesSystem {
     const behaviors = behaviorKeys.map((key) => pick(this.rng, SPECIES_POOLS.behaviors[key]));
     const mindful = state.stage === 'Thinking Beasts' || state.stage === 'Civilization' || state.stage === 'Ruin or Renewal';
     const toolCapable = mindful && state.mindEchoes >= 1 && biases.Curiosity > 7;
+    const bugLike = lineage === 'bug' || bugPattern.test(name);
+    const collective = bugLike
+      ? behaviorKeys.includes('Cooperation') || biases.Curiosity > 5 || biases.Adaptability > 6
+      : behaviorKeys.includes('Cooperation') && (biases.Curiosity > 6 || biases.Adaptability > 6);
     const summaryParts = [
       `${name}.`,
       `${behaviors[0]} and ${behaviors[1]}.`,
       habitatDescriptions[habitat],
     ];
+    const lineageLine = this.describeLineage(lineage, habitat, behaviorKeys, collective);
+    if (lineageLine) summaryParts.push(lineageLine);
+    if (bugLike) summaryParts.push('Small bodies move in ruthless number.');
+    if (collective) summaryParts.push('Many minds lean toward one command.');
     if (toolCapable) {
       summaryParts.push('It experiments with objects and repeated methods.');
     }
     return {
       name,
+      lineage,
       habitat,
       behaviors: behaviorKeys,
       mindful,
       toolCapable,
+      bugLike,
+      collective,
       summary: summaryParts.join(' '),
     };
   }
@@ -484,6 +593,19 @@ export class CivilizationSystem {
     this.rng = rng;
   }
 
+  civRoot(species) {
+    const parts = species.name.split(' ');
+    if (species.bugLike && parts.length > 1) return parts[parts.length - 1];
+    return parts[0];
+  }
+
+  collectiveFocus(state, biases) {
+    if (biases.Curiosity > 8 || state.variables.Ingenuity > 8) {
+      return 'It shares thought through scent, rhythm, and omen.';
+    }
+    return 'Many bodies carry one command.';
+  }
+
   process(state, history) {
     const lines = [];
     if (!state.civilization && this.shouldEmerge(state)) {
@@ -493,6 +615,21 @@ export class CivilizationSystem {
     }
     if (!state.civilization) return lines;
 
+    if (!state.civilization.bugLike
+      && state.dominantSpecies?.bugLike
+      && state.dominantSpecies.collective
+      && ['Civilization', 'Ruin or Renewal'].includes(state.stage)) {
+      const biases = state.derivedBiases();
+      state.civilization.bugLike = true;
+      state.civilization.collective = true;
+      state.civilization.name = `${this.civRoot(state.dominantSpecies)} ${pick(this.rng, SWARM_SUFFIXES)}`;
+      state.civilization.focus = this.collectiveFocus(state, biases);
+      state.civilization.summary = `${state.civilization.name}. ${state.civilization.ethos} ${state.civilization.focus}`;
+      const line = `${state.civilization.name} inherits the old cities and binds them into a swarm will.`;
+      history.add(state.year, state.turn, 'civilization', line);
+      lines.push(line);
+    }
+
     const event = this.selectEvent(state);
     state.applyEffects(event.effects);
     state.civilization.stability = clamp(state.civilization.stability + event.stability, 0, 100);
@@ -501,7 +638,7 @@ export class CivilizationSystem {
     lines.push(event.text);
 
     if (event.kind === 'collapse') state.collapseMarks += 1;
-    if (['war', 'collapse', 'renewal'].includes(event.kind)) {
+    if (['war', 'holy-war', 'collapse', 'renewal'].includes(event.kind)) {
       history.add(state.year, state.turn, event.kind, event.text);
     }
     return lines;
@@ -512,31 +649,40 @@ export class CivilizationSystem {
     if (!['Thinking Beasts', 'Civilization', 'Ruin or Renewal'].includes(state.stage)) return false;
     const biases = state.derivedBiases();
     const socialPressure = Math.max(biases.Curiosity, biases.Cooperation, biases.Aggression);
-    const readiness = state.variables.Ingenuity >= 4 || state.dominantSpecies.toolCapable || biases.Curiosity > 5;
-    return state.stageTurn >= 1 && state.life >= 18 && state.ageCount >= 3 && state.mindEchoes >= 1 && readiness && socialPressure > 5;
+    const collectiveBonus = state.dominantSpecies.collective ? 1 : 0;
+    const readiness = state.variables.Ingenuity >= 4 - collectiveBonus || state.dominantSpecies.toolCapable || biases.Curiosity > 5 - collectiveBonus;
+    return state.stageTurn >= 1 && state.life >= 18 - collectiveBonus * 2 && state.ageCount >= 3 - collectiveBonus && state.mindEchoes >= 1 && readiness && socialPressure > 5 - collectiveBonus;
   }
 
   createCivilization(state) {
     const biases = state.derivedBiases();
+    const collective = Boolean(state.dominantSpecies.collective || state.dominantSpecies.bugLike);
+    const bugLike = Boolean(state.dominantSpecies.bugLike);
     let tone = 'order';
     if (biases.Aggression > biases.Cooperation + 4) tone = 'war';
     else if (biases.Curiosity > 10) tone = 'craft';
     else if (biases.Cooperation > 8) tone = 'kin';
     else if (biases.Resilience > 8) tone = 'endure';
-    const root = state.dominantSpecies.name.split(' ')[0];
-    const name = `${root} ${pick(this.rng, CIVILIZATION_SUFFIXES)}`;
-    const focus = state.variables.Oceans > 8
-      ? 'Its roads are made of water.'
-      : biases.Curiosity > 9
-        ? 'Its hunger turns toward tools and hidden laws.'
-        : state.variables.Dominance > 9
-          ? 'Its gaze turns toward conquest.'
-          : 'It builds storehouses, stories, and walls.';
+    const root = this.civRoot(state.dominantSpecies);
+    const suffixes = bugLike ? SWARM_SUFFIXES : CIVILIZATION_SUFFIXES;
+    const name = `${root} ${pick(this.rng, suffixes)}`;
+    const focus = collective && bugLike
+      ? this.collectiveFocus(state, biases)
+      : state.variables.Oceans > 8
+        ? 'Its roads are made of water.'
+        : biases.Curiosity > 9
+          ? 'Its hunger turns toward tools and hidden laws.'
+          : state.variables.Dominance > 9
+            ? 'Its gaze turns toward conquest.'
+            : 'It builds storehouses, stories, and walls.';
     return {
       name,
       ethos: civEthos[tone],
       focus,
       stability: 56,
+      collective,
+      bugLike,
+      holyWarSeen: false,
       lastEvent: `${name} raises its first shared laws.`,
       summary: `${name}. ${civEthos[tone]} ${focus}`,
     };
@@ -544,6 +690,24 @@ export class CivilizationSystem {
 
   selectEvent(state) {
     const biases = state.derivedBiases();
+    if (!state.civilization.holyWarSeen
+      && state.civilization.collective
+      && state.civilization.bugLike
+      && state.stage !== 'Thinking Beasts'
+      && state.variables.Ingenuity >= 5
+      && biases.Curiosity > 5
+      && (biases.Aggression > 3 || state.variables.Dominance > 4)) {
+      state.civilization.holyWarSeen = true;
+      return {
+        kind: 'holy-war',
+        stability: -8,
+        text: `${state.civilization.name} fights a holy war to decide whether you are god.`,
+        effects: {
+          Warmth: 0, Moisture: -1, Tempest: 1, Upheaval: 2, Oceans: 0,
+          Fertility: -2, Diversity: -2, Ingenuity: 1, Dominance: 3,
+        },
+      };
+    }
     if (state.stage === 'Ruin or Renewal' && (state.entropy > 18 || state.civilization.stability < 32)) {
       return {
         kind: 'collapse',
